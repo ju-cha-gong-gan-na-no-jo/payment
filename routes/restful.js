@@ -2,19 +2,205 @@ const express =require("express");
 const bodyParser = require('body-parser');
 const app = express();
 const { MongoClient } = require('mongodb');
-const env =require("dotenv").config({ path: "/home/bitnami/park/.env"});
-
+const env =require("dotenv").config({ path: "/home/bitnami/payment/.env"});
 var uri = process.env.uri;
 var urp = process.env.urp;
-
-let CAR_NUMBER = -111111;
-let CAR_NOW = -1111111;
-let PARK_NUMBER = -1111;
-
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended : false}));
 app.use(express.json());
 app.use(express.urlencoded({extended : true}));
+
+//=================================================================================================================
+//몽고의 주차요금을 pay_forten 에 넣어주는 함수
+async function getPay(){
+	MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("parkdb");
+
+    //분당 금액 확인
+    dbo.collection("parkop").find({"id":"1"}, {projection:{_id:0,id:0}}).toArray(function(err,result) {
+      pay_forten = result[0]["payment_amount"];
+      console.log(pay_forten);
+		  if(err) throw err;
+			  db.close();
+		  });
+	});
+	await Promise.resolve("ok");
+}
+getPay().then();
+
+
+//=================================================================================================================
+//몽고의 회차시간을 return_time 에 넣어주는 함수
+async function getReturnTime(){
+	MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("parkdb");
+
+    //회차시간 확인
+    dbo.collection("parkop").find({"id":"1"}, {projection:{_id:0,id:0}}).toArray(function(err,result) {
+      return_time = result[0]["return_time"];
+      console.log(return_time);
+		  if(err) throw err;
+			  db.close();
+		  });
+	});
+	await Promise.resolve("ok");
+}
+getReturnTime().then();
+
+//=================================================================================================================
+//몽고의 대여 시작 시간을 start_time 에 넣어주는 함수
+async function getStartTime(){
+	MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("parkdb");
+
+    //시작시간 확인
+    dbo.collection("parkop").find({"id":"1"}, {projection:{_id:0,id:0}}).toArray(function(err,result) {
+      start_time = result[0]["start_time"];
+      console.log(start_time);
+		  if(err) throw err;
+			  db.close();
+		  });
+	});
+	await Promise.resolve("ok");
+}
+getStartTime().then();
+
+//=================================================================================================================
+//몽고의 대여 마감 시간을 end_time 에 넣어주는 함수
+async function getEndTime(){
+	MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("parkdb");
+
+    //마감시간 확인
+    dbo.collection("parkop").find({"id":"1"}, {projection:{_id:0,id:0}}).toArray(function(err,result) {
+      end_time = result[0]["end_time"];
+      console.log(end_time);
+		  if(err) throw err;
+			  db.close();
+		  });
+	});
+	await Promise.resolve("ok");
+}
+getEndTime().then();
+
+//=================================================================================================================
+//몽고의 대여 마감 시간을 end_time 에 넣어주는 함수
+async function getEndTime(){
+	MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("parkdb");
+
+    //마감시간 확인
+    dbo.collection("parkop").find({"id":"1"}, {projection:{_id:0,id:0}}).toArray(function(err,result) {
+      end_time = result[0]["end_time"];
+      console.log(end_time);
+		  if(err) throw err;
+			  db.close();
+		  });
+	});
+	await Promise.resolve("ok");
+}
+getEndTime().then();
+//=================================================================================================================
+
+//모든 결제 데이터 조회
+app.get("/payment/payinfo/all", (req, res) => {
+  MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("parkdb");
+    dbo.collection("payinfo").find({}, {projection:{_id:0, id:0}}).toArray(function(err,result) {
+      if (err) throw err;
+      res.json( {paymentInfo : result});
+      db.close();
+    });
+  });
+})
+
+//======================================================================================================================
+//쿠폰적용
+
+app.post("/payment/coupon/add", (req, res) => {
+  MongoClient.connect(urp, function(err, db) {
+    const car_number = req.body.car_number
+    const coupon = req.body.coupon
+    if (err) throw err;
+    const dbo = db.db("parkdb");
+    dbo.collection("payinfo").updateMany({"car_num" : car_number}, {$set:{"coupon" : coupon}}, {upsert: true})
+      if (err) throw err;
+      res.json({couponInfo : [{car_num : car_number, coupon : coupon}]});
+    });
+})
+
+
+//======================================================================================================================
+// 출차하는 차량의 주차요금 정산
+// 주차요금은 10분당 500원
+app.post("/payment/pay/pay", (req, res) => {
+	MongoClient.connect(urp, function(err, db) {
+    const car_number = req.body.car_number
+		if (err) throw err;
+		const dbo = db.db("parkdb");
+		dbo.collection("payinfo").find({"car_num":car_number}, {projection:{_id:0}}).toArray(function(err, result) {
+		  	if (err) throw err;
+        var coupon = result[0]['coupon'];
+        var outtime = new Date((result[0]['out_time']));
+        var entertime = new Date((result[0]['enter_time']));
+        var totaltime = Math.ceil(((outtime.getTime() - entertime.getTime())/1000/60)/10)*10;
+        if (totaltime <= return_time) {
+          res.json({payment:[{car_num:car_number, payment:"회차차량입니다."}]});
+        
+        }else{
+          if (coupon > 0) {
+            let data_fee = (totaltime/10-(coupon*6))* pay_forten;
+            if (data_fee <= 0) {
+              res.json({payment:[{car_num:car_number, payment:"상점 이용 감사합니다."}]});
+            }else if (data_fee > 0) {
+              res.json({payment:[{car_num:car_number, payment:data_fee}]});
+            }
+          }else if (coupon <= 0) {
+            let data_fee = (totaltime/10)* pay_forten;
+            res.json({payment:[{car_num:car_number, payment:data_fee}]});
+          }
+        }db.close();
+          // res.json((outtime.getTime() - entertime.getTime())/1000/60/10* pay_forten);
+			    // let data_fee = (outtime.getTime() - entertime.getTime())/1000/60/10* pay_forten; 
+			    // res.json({status:"OK", message:"OK", totalData:1, parkFeeInfos:[{car_num:car_number, fee:data_fee}]});
+		  	  // db.close();
+		});
+	});	
+});
+
+//======================================================================================================================
+//결제 완료 정보 저장
+
+app.post("/payment/pay/addpay", (req, res) => {
+  MongoClient.connect(urp, function(err, db) {
+    const car_number = req.body.car_number
+    const enter_time = req.body.enter_time
+    const out_time = req.body.out_time
+    const payment_amount = req.body.payment_amount
+    if (err) throw err;
+    const dbo = db.db("parkdb");
+    dbo.collection("payinfo").updateMany({"car_num" : car_number}, {$set:{"payment_amount" : payment_amount,"enter_time" : enter_time, "out_time" : out_time}}, {upsert: true})
+      if (err) throw err;
+      res.json({status : "success"});
+    });
+})
+
+
+
+
+
+
+
+
+
+
+
 
 //몽고의 차량 대수 값을 CAR_NUMBER 변수에 넣어주는 함수
 async function getNumberOfCar(){
@@ -104,21 +290,33 @@ async function getUseNumberPark(){
 }
 getUseNumberPark().then();
 
-const park = [
-  { id:0, name:"10"},
-  { id:1, name:"9"},
-  { id:2, name:"8"},
-  { id:3, name:"7"},
-  { id:4, name:"6"},
-  { id:5, name:"5"},
-  { id:6, name:"4"},
-  { id:7, name:"3"},
-  { id:8, name:"2"},
-  { id:9, name:"1"},
-  { id:10, name:"0"}
-];
 
-const park_area = 10
+//=================================================================================================================
+
+//14쪽 실시간 현황 데이터 조회
+app.get("/status/car/data/all", (req, res) => {
+  MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("parkdb");
+    dbo.collection("park").find({}, {projection:{_id:0, id:0}}).toArray(function(err,result) {
+      if (err) throw err;
+      res.json( {current_data : result});
+      db.close();
+    });
+  });
+})
+
+
+
+
+
+
+
+
+
+
+
+
 
 //---------------------------------------------------------------------------------
 
