@@ -1,7 +1,3 @@
-# API_KEY
+# API_KEYS
 .env
-
-# S3_Key
-backup.js
-
 export.sh

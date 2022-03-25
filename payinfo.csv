@@ -1,5 +1,0 @@
-{"_id":"62398c8a7d7783162eb8910b","car_num":"123가1234","coupon":"0","coupon_status":"T","enter_time":"2022-03-02 11:00","id":"1","market_num":"1","out_time":"2022-03-02 11:10","park_num":"1","payment_status":"T","type":"방문객"}
-{"_id":"6239a1e97d7783162eb8910c","car_num":"123나1234","coupon":"3","coupon_status":"T","enter_time":"2022-03-02 11:00","id":"2","market_num":"2","out_time":"2022-03-02 12:30","park_num":"1","payment_status":"T","type":"방문객","payment_amount":"2000"}
-{"_id":"6239a1f17d7783162eb8910d","car_num":"123다1234","coupon":"1","coupon_status":"T","enter_time":"2022-03-02 13:00","id":"3","market_num":"3","out_time":"2022-03-02 14:30","park_num":"1","payment_status":"F","type":"방문객"}
-{"_id":"6239a1f47d7783162eb8910e","car_num":"123마1234","coupon":"0","coupon_status":"T","enter_time":"2022-03-02 15:00","id":"4","market_num":"4","out_time":"2022-03-02 18:30","park_num":"1","payment_status":"F","type":"방문객"}
-{"_id":"6239a1f77d7783162eb8910f","car_num":"123라1234","coupon_status":"F","enter_time":"2022-03-02 17:00","id":"5","out_time":"2022-03-02 17:30","park_num":"1","payment_status":"F","type":"방문객","coupon":"0"}
