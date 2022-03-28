@@ -180,8 +180,9 @@ app.post("/payment/pay/pay", (req, res) => {
           console.log(start_time);
           console.log(entertime < start_time);
           console.log(outtime > end_time);
+          var result = parseInt(totaltime/60/24);
             if ((totaltime/60) > 24) {
-              res.json({payment:[{car_num:car_number, payment:penalty_fee*2}]});
+              res.json({payment:[{car_num:car_number, payment:penalty_fee*result}]});
             }else if ((totaltime/60) <= 24) {
               res.json({payment:[{car_num:car_number, payment:penalty_fee}]});          
             }
@@ -221,6 +222,37 @@ app.post("/payment/pay/addpay", (req, res) => {
       if (err) throw err;
       res.json({status : "success"});
     });
+})
+
+
+//-----------------------------------------------------------------------------------
+// 특정 차량 결제 데이터 조회
+app.post("/payment/pay/data/num", (req, res) => {
+  const car_number = req.body.car_number
+  MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("PAYDB");
+    dbo.collection("PAY_INFO").find({"CAR_NUM":car_number}, {projection:{_id:0}}).toArray(function(err,result) {
+      if (err) throw err;
+      res.json({found_data : result});
+      db.close();
+    });
+  });
+})
+
+//-----------------------------------------------------------------------------------
+// 오늘하루 전체 누적금액 추출
+
+app.get("/payment/payinfo/all/sum", (req, res) => {
+  MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("PAYDB");
+    dbo.collection("PAY_INFO").aggregate([  { $group: { _id: null, "TOTAL": {$sum: "PAY_AMOUNT"}}}]).toArray(function(err,result) {
+      if (err) throw err;
+      res.json( {paymentInfo : result});
+      db.close();
+    });
+  });
 })
 
 module.exports = app;
