@@ -208,8 +208,10 @@ app.post("/payment/pay/pay", (req, res) => {
           // console.log(outtime > end_time);
           var result = parseInt(totaltime/60/24);
             if ((totaltime/60) > 24) {
+              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : penalty_fee*result}}, {upsert: true});
               res.json({payment:[{car_num:car_number, payment:penalty_fee*result, in_time:iintime, out_time:escapeetime, coupon:coupon}]});
             }else if ((totaltime/60) <= 24) {
+              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : penalty_fee}}, {upsert: true});
               res.json({payment:[{car_num:car_number, payment:penalty_fee, in_time:iintime, out_time:escapeetime, coupon:coupon}]});          
             }
         }else {  
@@ -217,15 +219,18 @@ app.post("/payment/pay/pay", (req, res) => {
             let data_fee = (totaltime/10-(coupon*6))* pay_forten;
             let data_fee1 = (totaltime/10)* pay_forten;
             if (data_fee <= 0) {
+              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee1}}, {upsert: true});
               res.json({payment:[{car_num:car_number, payment:data_fee1, remark :"상점 이용 감사합니다.", in_time:iintime, out_time:escapeetime, coupon:coupon}]});
             }else if (data_fee > 0) {
+              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee}}, {upsert: true});
               res.json({payment:[{car_num:car_number, payment:data_fee, remark :"상점 이용 감사합니다.", in_time:iintime, out_time:escapeetime, coupon:coupon}]});
             }
           }else if (coupon <= 0) {
             let data_fee = (totaltime/10)* pay_forten;
+            dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee}}, {upsert: true});
             res.json({payment:[{car_num:car_number, payment:data_fee, in_time:iintime, out_time:escapeetime, coupon:coupon}]});
           }
-        }db.close();
+        }
           // res.json((outtime.getTime() - entertime.getTime())/1000/60/10* pay_forten);
 			    // let data_fee = (outtime.getTime() - entertime.getTime())/1000/60/10* pay_forten; 
 			    // res.json({status:"OK", message:"OK", totalData:1, parkFeeInfos:[{car_num:car_number, fee:data_fee}]});
