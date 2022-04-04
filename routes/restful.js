@@ -208,10 +208,10 @@ app.post("/payment/pay/pay", (req, res) => {
           // console.log(outtime > end_time);
           var result = parseInt(totaltime/60/24);
             if ((totaltime/60) > 24) {
-              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : penalty_fee*result}}, {upsert: true});
+              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : penalty_fee*result, "PARK_TIME" : totaltime}}, {upsert: true});
               res.json({payment:[{car_num:car_number, payment:penalty_fee*result, in_time:iintime, out_time:escapeetime, coupon:coupon}]});
             }else if ((totaltime/60) <= 24) {
-              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : penalty_fee}}, {upsert: true});
+              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : penalty_fee, "PARK_TIME" : totaltime}}, {upsert: true});
               res.json({payment:[{car_num:car_number, payment:penalty_fee, in_time:iintime, out_time:escapeetime, coupon:coupon}]});          
             }
         }else {  
@@ -219,15 +219,15 @@ app.post("/payment/pay/pay", (req, res) => {
             let data_fee = (totaltime/10-(coupon*6))* pay_forten;
             let data_fee1 = (totaltime/10)* pay_forten;
             if (data_fee <= 0) {
-              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee1}}, {upsert: true});
+              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee1, "PARK_TIME" : totaltime}}, {upsert: true});
               res.json({payment:[{car_num:car_number, payment:data_fee1, remark :"상점 이용 감사합니다.", in_time:iintime, out_time:escapeetime, coupon:coupon}]});
             }else if (data_fee > 0) {
-              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee}}, {upsert: true});
+              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee, "PARK_TIME" : totaltime}}, {upsert: true});
               res.json({payment:[{car_num:car_number, payment:data_fee, remark :"상점 이용 감사합니다.", in_time:iintime, out_time:escapeetime, coupon:coupon}]});
             }
           }else if (coupon <= 0) {
             let data_fee = (totaltime/10)* pay_forten;
-            dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee}}, {upsert: true});
+            dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee, "PARK_TIME" : totaltime}}, {upsert: true});
             res.json({payment:[{car_num:car_number, payment:data_fee, in_time:iintime, out_time:escapeetime, coupon:coupon}]});
           }
         }
@@ -280,6 +280,110 @@ app.get("/payment/payinfo/all/sum", (req, res) => {
     if (err) throw err;
     const dbo = db.db("PAYDB");
     dbo.collection("PAY_INFO").aggregate([  { $group: { _id: null, "TOTAL": {$sum: "$PAY_AMOUNT"}}}]).toArray(function(err,result) {
+      if (err) throw err;
+      res.json( {paymentInfo : result});
+      db.close();
+    });
+  });
+})
+
+module.exports = app;
+
+
+//-----------------------------------------------------------------------------------
+// 오늘하루 개인 전체 누적금액 추출
+
+app.get("/payment/payinfo/all/cus", (req, res) => {
+  MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("PAYDB");
+    dbo.collection("PAY_INFO").aggregate([{$match: { MEMBER_TYPE : "방문객" }} ,  { $group: { _id: null, "TOTAL": {$sum: "$PAY_AMOUNT"}}}]).toArray(function(err,result) {
+      if (err) throw err;
+      res.json( {paymentInfo : result});
+      db.close();
+    });
+  });
+})
+
+module.exports = app;
+
+//-----------------------------------------------------------------------------------
+// 오늘하루 상점 전체 누적금액 추출
+
+app.get("/payment/payinfo/all/sto", (req, res) => {
+  MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("PAYDB");
+    dbo.collection("PAY_INFO").aggregate([{$match: { MEMBER_TYPE : "상점손님" }} ,  { $group: { _id: null, "TOTAL": {$sum: "$PAY_AMOUNT"}}}]).toArray(function(err,result) {
+      if (err) throw err;
+      res.json( {paymentInfo : result});
+      db.close();
+    });
+  });
+})
+
+module.exports = app;
+
+//-----------------------------------------------------------------------------------
+// 오늘하루 특정 상점 전체 누적금액 추출
+
+app.post("/payment/payinfo/all/sto/spe", (req, res) => {
+  const sto_name = req.body.sto_name
+  MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("PAYDB");
+    dbo.collection("PAY_INFO").aggregate([{$match: { STORE_NAME : sto_name }} ,  { $group: { _id: null, "TOTAL": {$sum: "$PAY_AMOUNT"}}}]).toArray(function(err,result) {
+      if (err) throw err;
+      res.json( {paymentInfo : result});
+      db.close();
+    });
+  });
+})
+
+//=================================================================================================================
+
+//방문객 결제 데이터 조회
+app.get("/payment/payinfo/cus", (req, res) => {
+  MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("PAYDB");
+    dbo.collection("PAY_INFO").find({MEMBER_TYPE:"방문객"}, {projection:{_id:0, id:0}}).toArray(function(err,result) {
+      if (err) throw err;
+      res.json( {paymentInfo : result});
+      db.close();
+    });
+  });
+})
+
+module.exports = app;
+
+
+//=================================================================================================================
+
+//상점 결제 데이터 조회
+app.get("/payment/payinfo/sto", (req, res) => {
+  MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("PAYDB");
+    dbo.collection("PAY_INFO").find({MEMBER_TYPE:"상점손님"}, {projection:{_id:0, id:0}}).toArray(function(err,result) {
+      if (err) throw err;
+      res.json( {paymentInfo : result});
+      db.close();
+    });
+  });
+})
+
+module.exports = app;
+
+//=================================================================================================================
+
+// 특정 상점 결제 데이터 조회
+app.post("/payment/payinfo/sto/name", (req, res) => {
+  const sto_name = req.body.sto_name
+  MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("PAYDB");
+    dbo.collection("PAY_INFO").find({STORE_NAME:sto_name}, {projection:{_id:0, id:0}}).toArray(function(err,result) {
       if (err) throw err;
       res.json( {paymentInfo : result});
       db.close();
