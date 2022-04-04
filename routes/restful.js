@@ -131,9 +131,11 @@ app.post("/payment/coupon/add", (req, res) => {
   MongoClient.connect(urp, function(err, db) {
     const car_number = req.body.car_number
     const coupon = req.body.coupon
+    const store_num = req.body.store_num
+    const store_name = req.body.store_name
     if (err) throw err;
     const dbo = db.db("PAYDB");
-    dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"COUPON" : coupon}}, {upsert: true})
+    dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"COUPON" : coupon, "COUPON_STATUS" : "T", "MEMBER_TYPE" : "상점고객", "STORE_NUM" : store_num, "STORE_NAME" : store_name, MEMBER_TYPE_NUM : "5" }}, {upsert: true})
       if (err) throw err;
       res.json({couponInfo : [{CAR_NUM : car_number, COUPON : coupon}]});
     });
