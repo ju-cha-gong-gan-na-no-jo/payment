@@ -2,6 +2,7 @@ const express =require("express");
 const bodyParser = require('body-parser');
 const app = express();
 const { MongoClient } = require('mongodb');
+const { EventEmitter } = require("stream");
 const env =require("dotenv").config({ path: "/home/bitnami/payment/.env"});
 var uri = process.env.uri;
 var urp = process.env.urp;
@@ -135,7 +136,7 @@ app.post("/payment/coupon/add", (req, res) => {
     const store_name = req.body.store_name
     if (err) throw err;
     const dbo = db.db("PAYDB");
-    dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"COUPON" : coupon, "COUPON_STATUS" : "T", "MEMBER_TYPE" : "상점고객", "STORE_NUM" : store_num, "STORE_NAME" : store_name, MEMBER_TYPE_NUM : "5" }}, {upsert: true})
+    dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"COUPON" : coupon, "COUPON_STATUS" : "T", "MEMBER_TYPE" : "상점고객", "STORE_NUM" : store_num, "STORE_NAME" : store_name }}, {upsert: true})
       if (err) throw err;
       res.json({couponInfo : [{CAR_NUM : car_number, COUPON : coupon}]});
     });
@@ -210,10 +211,10 @@ app.post("/payment/pay/pay", (req, res) => {
           // console.log(outtime > end_time);
           var result = parseInt(totaltime/60/24);
             if ((totaltime/60) > 24) {
-              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : penalty_fee*result, "PARK_TIME" : totaltime}}, {upsert: true});
+              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : penalty_fee*result, "PARK_TIME" : totaltime, "PAY_STATUS" : "T", "REMARK" : "이용시간비준수"}}, {upsert: true});
               res.json({payment:[{car_num:car_number, payment:penalty_fee*result, in_time:iintime, out_time:escapeetime, coupon:coupon}]});
             }else if ((totaltime/60) <= 24) {
-              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : penalty_fee, "PARK_TIME" : totaltime}}, {upsert: true});
+              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : penalty_fee, "PARK_TIME" : totaltime, "PAY_STATUS" : "T", "REMARK" : "이용시간비준수"}}, {upsert: true});
               res.json({payment:[{car_num:car_number, payment:penalty_fee, in_time:iintime, out_time:escapeetime, coupon:coupon}]});          
             }
         }else {  
@@ -221,15 +222,15 @@ app.post("/payment/pay/pay", (req, res) => {
             let data_fee = (totaltime/10-(coupon*6))* pay_forten;
             let data_fee1 = (totaltime/10)* pay_forten;
             if (data_fee <= 0) {
-              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee1, "PARK_TIME" : totaltime}}, {upsert: true});
+              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee1, "PARK_TIME" : totaltime, "PAY_STATUS" : "T"}}, {upsert: true});
               res.json({payment:[{car_num:car_number, payment:data_fee1, remark :"상점 이용 감사합니다.", in_time:iintime, out_time:escapeetime, coupon:coupon}]});
             }else if (data_fee > 0) {
-              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee, "PARK_TIME" : totaltime}}, {upsert: true});
+              dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee, "PARK_TIME" : totaltime, "PAY_STATUS" : "T"}}, {upsert: true});
               res.json({payment:[{car_num:car_number, payment:data_fee, remark :"상점 이용 감사합니다.", in_time:iintime, out_time:escapeetime, coupon:coupon}]});
             }
           }else if (coupon <= 0) {
             let data_fee = (totaltime/10)* pay_forten;
-            dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee, "PARK_TIME" : totaltime}}, {upsert: true});
+            dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"PAY_AMOUNT" : data_fee, "PARK_TIME" : totaltime, "PAY_STATUS" : "T"}}, {upsert: true});
             res.json({payment:[{car_num:car_number, payment:data_fee, in_time:iintime, out_time:escapeetime, coupon:coupon}]});
           }
         }
@@ -299,7 +300,7 @@ app.get("/payment/payinfo/all/cus", (req, res) => {
   MongoClient.connect(urp, function(err, db) {
     if (err) throw err;
     const dbo = db.db("PAYDB");
-    dbo.collection("PAY_INFO").aggregate([{$match: { MEMBER_TYPE : "방문객" }} ,  { $group: { _id: null, "TOTAL": {$sum: "$PAY_AMOUNT"}}}]).toArray(function(err,result) {
+    dbo.collection("PAY_INFO").aggregate([{$match: { MEMBER_TYPE : "고객" }} ,  { $group: { _id: null, "TOTAL": {$sum: "$PAY_AMOUNT"}}}]).toArray(function(err,result) {
       if (err) throw err;
       res.json( {paymentInfo : result});
       db.close();
@@ -316,7 +317,7 @@ app.get("/payment/payinfo/all/sto", (req, res) => {
   MongoClient.connect(urp, function(err, db) {
     if (err) throw err;
     const dbo = db.db("PAYDB");
-    dbo.collection("PAY_INFO").aggregate([{$match: { MEMBER_TYPE : "상점손님" }} ,  { $group: { _id: null, "TOTAL": {$sum: "$PAY_AMOUNT"}}}]).toArray(function(err,result) {
+    dbo.collection("PAY_INFO").aggregate([{$match: { MEMBER_TYPE : "상점고객" }} ,  { $group: { _id: null, "TOTAL": {$sum: "$PAY_AMOUNT"}}}]).toArray(function(err,result) {
       if (err) throw err;
       res.json( {paymentInfo : result});
       db.close();
@@ -349,7 +350,7 @@ app.get("/payment/payinfo/cus", (req, res) => {
   MongoClient.connect(urp, function(err, db) {
     if (err) throw err;
     const dbo = db.db("PAYDB");
-    dbo.collection("PAY_INFO").find({MEMBER_TYPE:"방문객"}, {projection:{_id:0, id:0}}).toArray(function(err,result) {
+    dbo.collection("PAY_INFO").find({MEMBER_TYPE:"고객"}, {projection:{_id:0, id:0}}).toArray(function(err,result) {
       if (err) throw err;
       res.json( {paymentInfo : result});
       db.close();
@@ -367,7 +368,7 @@ app.get("/payment/payinfo/sto", (req, res) => {
   MongoClient.connect(urp, function(err, db) {
     if (err) throw err;
     const dbo = db.db("PAYDB");
-    dbo.collection("PAY_INFO").find({MEMBER_TYPE:"상점손님"}, {projection:{_id:0, id:0}}).toArray(function(err,result) {
+    dbo.collection("PAY_INFO").find({MEMBER_TYPE:"상점고객"}, {projection:{_id:0, id:0}}).toArray(function(err,result) {
       if (err) throw err;
       res.json( {paymentInfo : result});
       db.close();
@@ -392,5 +393,73 @@ app.post("/payment/payinfo/sto/name", (req, res) => {
     });
   });
 })
+
+
+
+//-----------------------------------------------------------------------------------
+// 설정 데이터 전체 조회
+
+app.post("/setting/all", (req, res) => {
+  const park_num = req.body.park_num
+  MongoClient.connect(uri, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("JUCHADB");
+    dbo.collection("PARK_AREA").find({"PARK_NUM":park_num}, {projection:{_id:0}}).toArray(function(err,result) {
+      if (err) throw err;
+      res.json({found_data : result, "return_time" : return_time, "start_time" : start_time, "end_time" : end_time, "pay_fee" : pay_forten, "penalty_fee" : penalty_fee });
+      db.close();
+    });
+  });
+})
+
+//======================================================================================================================
+// 설정데이터 전체 수정
+
+app.post("/setting/all/modify", (req, res) => {
+  const EventEmitter = require('events')
+  const myEvent = new EventEmitter();
+  const park_number = req.body.park_number
+  const total_space = req.body.total_space
+  const rental_space = req.body.rental_space
+  const park_num = req.body.park_num
+  const return_time = req.body.return_time
+  const start_time = req.body.start_time
+  const end_time = req.body.end_time
+  const pay_fee = req.body.pay_fee
+  const park_day_fee = req.body.park_day_fee
+  
+  myEvent.on('event1', ()=> {
+    // console.log("good?")
+    console.log(park_number)
+    console.log(total_space)
+    MongoClient.connect(uri, function(err, db) {
+      // console.log("check1")
+        if (err) throw err;
+      const dbo = db.db("JUCHADB");
+        dbo.collection("PARK_AREA").updateMany({"PARK_NUM" : park_number}, {$set:{"TOTAL_SPACE" : total_space, "RENTAL_SPACE" : rental_space}}, {upsert: true})
+        // console.log("check2")
+        res.json({found_data : "good" });
+        if (err) throw err;
+        
+        
+  })});
+
+  myEvent.on('event2', ()=> {
+    console.log("bad?")
+    console.log(park_number)
+    console.log(total_space)
+    MongoClient.connect(urp, function(err, db) {
+        if (err) throw err;
+      const dbo = db.db("PAYDB");
+        dbo.collection("PAY_OPTION").updateMany({"PARK_NUM" : park_num}, {$set:{"RETURN_TIME" : return_time, "START_TIME" : start_time, "END_TIME" : end_time, "PAY_FEE" : pay_fee, "PARK_DAY_FEE" : park_day_fee}}, {upsert: true})
+        // res.json({found_data : "bad" });
+        if (err) throw err;
+  })
+  });
+  setTimeout(() => myEvent.emit('event1'), 4000);
+  myEvent.emit('event2', 'event1');
+});
+
+
 
 module.exports = app;
