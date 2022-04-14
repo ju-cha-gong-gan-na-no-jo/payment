@@ -465,15 +465,15 @@ app.get("/setting/all/get", (req, res) => {
 app.get("/setting/all/modify/get", (req, res) => {
   const EventEmitter = require('events')
   const myEvent = new EventEmitter();
-  const park_number = req.params.park_number
-  const total_space = req.params.total_space
-  const rental_space = req.params.rental_space
-  const park_num = req.params.park_num
-  const return_time = req.params.return_time
-  const start_time = req.params.start_time
-  const end_time = req.params.end_time
-  const pay_fee = req.params.pay_fee
-  const park_day_fee = req.params.park_day_fee
+  const park_number = req.query.park_number
+  const total_space = req.query.total_space
+  const rental_space = req.query.rental_space
+  const park_num = req.query.park_num
+  const return_time = req.query.return_time
+  const start_time = req.query.start_time
+  const end_time = req.query.end_time
+  const pay_fee = req.query.pay_fee
+  const park_day_fee = req.query.park_day_fee
   
   myEvent.on('event1', ()=> {
     // console.log("good?")
@@ -507,6 +507,43 @@ app.get("/setting/all/modify/get", (req, res) => {
   myEvent.emit('event2');
 });
 
+//-----------------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------------
+// 오늘하루 특정 상점 전체 누적금액 추출 get
+
+app.get("/payment/payinfo/all/sto/spe/get", (req, res) => {
+  const sto_name = req.query.sto_name
+  MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("PAYDB");
+    console.log(sto_name)
+    dbo.collection("PAY_INFO").aggregate([{$match: { STORE_NAME : sto_name }} ,  { $group: { _id: null, "TOTAL": {$sum: "$PAY_AMOUNT"}}}]).toArray(function(err,result) {
+      if (err) throw err;
+      res.json( {paymentInfo : result});
+      db.close();
+    });
+  });
+})
+
+
+//-----------------------------------------------------------------------------------
+
+//=================================================================================================================
+
+// 특정 상점 결제 데이터 조회 get
+app.get("/payment/payinfo/sto/name/get", (req, res) => {
+  const sto_name = req.query.sto_name
+  MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("PAYDB");
+    dbo.collection("PAY_INFO").find({STORE_NAME:sto_name}, {projection:{_id:0, id:0}}).toArray(function(err,result) {
+      if (err) throw err;
+      res.json( {paymentInfo : result});
+      db.close();
+    });
+  });
+})
 //-----------------------------------------------------------------------------------
 
 
