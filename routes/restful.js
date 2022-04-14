@@ -390,6 +390,11 @@ app.post("/setting/all", (req, res) => {
     const dbo = db.db("JUCHADB");
     dbo.collection("PARK_AREA").find({"PARK_NUM":park_num}, {projection:{_id:0}}).toArray(function(err,result) {
       if (err) throw err;
+      getPay()
+      getReturnTime()
+      getStartTime()
+      getEndTime()
+      getPenaltyPay()
       res.json({found_data : result, "return_time" : return_time, "start_time" : start_time, "end_time" : end_time, "pay_fee" : pay_forten, "penalty_fee" : penalty_fee });
       db.close();
     });
