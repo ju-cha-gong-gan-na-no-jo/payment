@@ -550,7 +550,39 @@ app.get("/payment/payinfo/sto/name/get", (req, res) => {
   });
 })
 //-----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------
+// 오늘하루 꿈다락 전체 누적금액 추출 get
 
+app.get("/payment/payinfo/all/sto/spe/get/k", (req, res) => {
+  MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("PAYDB");
+    dbo.collection("PAY_INFO").aggregate([{$match: { STORE_NAME : "꿈다락" }} ,  { $group: { _id: null, "TOTAL": {$sum: "$PAY_AMOUNT"}}}]).toArray(function(err,result) {
+      if (err) throw err;
+      res.json( {paymentInfo : result});
+      db.close();
+    });
+  });
+})
+
+
+//-----------------------------------------------------------------------------------
+
+//=================================================================================================================
+
+// 꿈다락 상점 결제 데이터 조회 get
+app.get("/payment/payinfo/sto/name/get/k", (req, res) => {
+  MongoClient.connect(urp, function(err, db) {
+    if (err) throw err;
+    const dbo = db.db("PAYDB");
+    dbo.collection("PAY_INFO").find({STORE_NAME: "꿈다락"}, {projection:{_id:0, id:0}}).toArray(function(err,result) {
+      if (err) throw err;
+      res.json( {paymentInfo : result});
+      db.close();
+    });
+  });
+})
+//-----------------------------------------------------------------------------------
 
 
 module.exports = app;
