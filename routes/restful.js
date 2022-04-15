@@ -584,5 +584,37 @@ app.get("/payment/payinfo/sto/name/get/k", (req, res) => {
 })
 //-----------------------------------------------------------------------------------
 
+//======================================================================================================================
+//입차 데이터 추가 post
+
+app.post("/payment/payinfo/intime", (req, res) => {
+  MongoClient.connect(urp, function(err, db) {
+    const car_number = req.body.car_number
+    const enter_time = req.body.enter_time
+    const type = req.query.type
+    if (err) throw err;
+    const dbo = db.db("PAYDB");
+    dbo.collection("PAY_INFO").insertMany([{CAR_NUM :  car_number, IN_TIME : enter_time, MEMBER_TYPE : type}])
+      if (err) throw err;
+      res.json({status : "success"});
+    });
+})
+
+//======================================================================================================================
+//주차현황 수정(출차시간) post
+
+app.post("/payment/payinfo/outtime", (req, res) => {
+  MongoClient.connect(urp, function(err, db) {
+    const car_number = req.body.car_number
+    const out_time = req.body.out_time
+    if (err) throw err;
+    const dbo = db.db("PAYDB");
+    dbo.collection("PAY_INFO").updateMany({"CAR_NUM" : car_number}, {$set:{"OUT_TIME" : out_time}}, {upsert: true})
+      if (err) throw err;
+      res.json({status : "success"});
+    });
+})
+
+
 
 module.exports = app;
