@@ -604,7 +604,7 @@ app.get("/payment/payinfo/sto/name/get/k", (req, res) => {
   MongoClient.connect(urp, function(err, db) {
     if (err) throw err;
     const dbo = db.db("PAYDB");
-    dbo.collection("PAY_INFO").find({STORE_NAME: "꿈다락"}, {projection:{_id:0, id:0}}).toArray(function(err,result) {
+    dbo.collection("PAY_INFO").find({STORE_NAME: "꿈다락"}, {projection:{_id:0, id:0}}).sort({"IN_TIME" : -1}).toArray(function(err,result) {
       if (err) throw err;
       res.json( {paymentInfo : result});
       db.close();
