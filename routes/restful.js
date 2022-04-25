@@ -2,7 +2,7 @@ const express =require("express");
 const bodyParser = require('body-parser');
 const app = express();
 const { MongoClient } = require('mongodb');
-const { EventEmitter } = require("stream");
+const { EventEmitter } = require("stream");       # 비동기 방식이라 실행시키는거를 순서를 주기위해서 이벤트 1, 2 이런 식으로 이벤트로 분리
 const env =require("dotenv").config({ path: "/home/bitnami/payment/.env"});
 var uri = process.env.uri;
 var urp = process.env.urp;
@@ -431,14 +431,14 @@ app.post("/setting/all", (req, res) => {
 })
 
 //======================================================================================================================
-// 설정데이터 전체 수정
+// 설정데이터 전체 수정  이벤트로 분리하여 2가지를 실행
 
 app.post("/setting/all/modify", (req, res) => {
   const EventEmitter = require('events')
   const myEvent = new EventEmitter();
   const park_number = req.body.park_number
   const total_space = req.body.total_space
-  const rental_space = req.body.rental_space
+  const rental_space = req.body.rental_space 
   const park_num = req.body.park_num
   const return_time = req.body.return_time
   const start_time = req.body.start_time
